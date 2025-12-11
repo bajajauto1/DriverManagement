@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Driver Assign System — Firebase</title>
+
+<!-- Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<!-- Firebase (compat) -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+<style>
+  :root{--blue:#1f6feb;--muted:#666}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;margin:0}
+  header{padding:12px 16px;background:var(--blue);color:white;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:18px;margin:0}
+  .wrap{max-width:1000px;margin:18px auto;padding:0 12px}
+  .card{background:white;padding:14px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+  button{padding:8px 12px;border:none;border-radius:6px;background:var(--blue);color:white;cursor:pointer}
+  .secondary{background:#f3f4f6;color:#111;border:1px solid #ddd}
+  .danger{background:#ef4444}
+  .hidden{display:none}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{border-bottom:1px solid #eee;padding:8px;text-align:left}
+  a.call{background:#10b981;padding:6px 10px;border-radius:6px;color:white;text-decoration:none}
+  input, select {padding:8px;border:1px solid #ddd;border-radius:6px}
+  .muted{color:var(--muted);font-size:13px}
+  .row{display:flex;gap:8px;align-items:center}
+  .small{padding:6px 8px;font-size:13px}
+</style>
+</head>
+<body>
+
+<header style="display:flex;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;gap:10px">
+    <img src="download (1).png" alt="Logo" style="height:40px;width:auto">
+    <h1 style="margin:0;font-size:18px;">Driver Assign System</h1>
+  </div>
+  <div>
+    <button id="adminLoginTop" style="background:white;color:var(--blue);font-weight:700">Admin Login</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Login -->
+  <div id="loginCard" class="card hidden" style="max-width:420px;margin-bottom:12px">
+    <strong>Admin Login</strong>
+    <div style="margin-top:10px" class="row">
+      <input id="email" placeholder="Email" style="flex:1">
+      <input id="password" placeholder="Password" type="password" style="flex:1">
+    </div>
+    <div style="margin-top:10px"><button id="loginBtn" style="width:100%">Login</button></div>
+    <div style="margin-top:8px" class="muted">Use Admin Login to open Admin Panel.</div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="card hidden" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Admin Panel</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="logoutBtn" class="secondary small">Logout</button>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+      <input id="searchAdmin" placeholder="Search admin table (route/driver/shift/phone)" style="flex:1">
+      <input id="fileInput" type="file" accept=".xlsx,.xls" class="small">
+      <button id="uploadBtn" class="small">Upload</button>
+      <button id="addDriverBtn" class="small">Add Driver</button>
+    </div>
+
+    <div id="driversTableWrap" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Driver Panel (default visible) -->
+  <div id="driverPanel" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Driver View</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="openAdminFromDriver" class="secondary small">Admin Login</button>
+        <select id="shiftFilter" class="small">
+          <option value="">All Shifts</option>
+          <option value="First Shift">First Shift</option>
+          <option value="Second Shift">Second Shift</option>
+          <option value="Third Shift">Third Shift</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <input id="driverSearch" placeholder="Search driver by name/phone/route/shift" style="width:100%">
+    </div>
+
+    <div id="driverInfoWrap" style="margin-top:12px"></div>
+  </div>
+
+</div>
+
+<script>
+
+/* 🔥 Firebase Config */
+const firebaseConfig = {
+  apiKey: "AIzaSyC9Jv8XMVH1tZbY4bb_vk5MOOIqdTG8Mc0",
+  authDomain: "trial-6de21.firebaseapp.com",
+  databaseURL: "https://trial-6de21-default-rtdb.firebaseio.com",
+  projectId: "trial-6de21",
+  storageBucket: "trial-6de21.firebasestorage.app",
+  messagingSenderId: "496906708733",
+  appId: "1:496906708733:web:0ac72a9b3308520a960094",
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+/* Utility */
+function normalizeShift(s){
+  if(!s) return "First Shift";
+  s = s.toString().trim().toLowerCase();
+  if(["1","first","first shift"].includes(s)) return "First Shift";
+  if(["2","second","second shift"].includes(s)) return "Second Shift";
+  if(["3","third","third shift"].includes(s)) return "Third Shift";
+  return "First Shift";
+}
+
+window.allDrivers = [];
+
+/* 🔥 LOAD DATA */
+function loadFromFirebase(){
+  db.ref("drivers").on("value", snap => {
+    const val = snap.val() || {};
+    window.allDrivers = Object.values(val);
+    renderDriverView();
+    renderAdminTable();
+  });
+}
+
+/* 🔥 SAVE DATA */
+function saveDriver(obj){
+  db.ref("drivers/" + obj.id).set(obj);
+}
+
+/* 🔥 DELETE DATA */
+function removeDriver(id){
+  db.ref("drivers/" + id).remove();
+}
+
+/* ---------- ADMIN TABLE ---------- */
+function renderAdminTable(){
+  const wrap = document.getElementById("driversTableWrap");
+  const q = document.getElementById("searchAdmin").value.toLowerCase();
+
+  const rows = window.allDrivers.filter(d =>
+    (d.route_no + d.route_name + d.driver_name + d.driver_number + d.shift)
+    .toLowerCase()
+    .includes(q)
+  );
+
+  if(!rows.length){
+    wrap.innerHTML = "<div class='muted'>No records</div>";
+    return;
+  }
+
+  let html = `
+  <table>
+    <tr>
+      <th>Shift</th>
+      <th>Route No</th>
+      <th>Route Name</th>
+      <th>Driver No</th>
+      <th>Driver Name</th>
+      <th>Pick Up</th>
+      <th>Calling</th>
+      <th>Call</th>
+      <th>Edit</th>
+      <th>Delete</th>
+    </tr>
+  `;
+
+  rows.forEach(d=>{
+    html += `
+      <tr>
+        <td>${d.shift}</td>
+        <td>${d.route_no}</td>
+        <td>${d.route_name}</td>
+        <td>${d.driver_number}</td>
+        <td>${d.driver_name}</td>
+        <td>${d.pick_up_time}</td>
+        <td>${d.calling_time}</td>
+        <td><a class="call" href="tel:${d.driver_number}">Call</a></td>
+        <td><button onclick="editDriver('${d.id}')">Edit</button></td>
+        <td><button class="danger" onclick="removeDriver('${d.id}')">Delete</button></td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+  wrap.innerHTML = html;
+}
+
+/* ---------- DRIVER VIEW ---------- */
+function renderDriverView(){
+  const wrap = document.getElementById("driverInfoWrap");
+  const q = document.getElementById("driverSearch").value.toLowerCase();
+  const shift = document.getElementById("shiftFilter").value;
+
+  const rows = window.allDrivers.filter(d=>{
+    const t = (d.driver_name + d.route_no + d.route_name + d.driver_number + d.shift).toLowerCase();
+    const okShift = !shift || d.shift === shift;
+    return t.includes(q) && okShift;
+  });
+
+  if(!rows.length){
+    wrap.innerHTML = "<div class='muted'>No Records</div>";
+    return;
+  }
+
+  let html = "";
+  rows.forEach(d=>{
+    html += `
+      <div class="card" style="margin-bottom:10px">
+        <strong>${d.driver_name}</strong>
+        <div>Shift: ${d.shift}</div>
+        <div>Route: ${d.route_no} - ${d.route_name}</div>
+        <div>Phone: ${d.driver_number}</div>
+        <div>Pick Up: ${d.pick_up_time}</div>
+        <div>Calling: ${d.calling_time}</div>
+      </div>
+    `;
+  });
+
+  wrap.innerHTML = html;
+}
+
+/* ---------- Excel Import (Fixed) ---------- */
+document.getElementById("uploadBtn").addEventListener("click", async () => {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) {
+    alert("Please choose a file first!");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async evt => {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      if (!workbook.SheetNames.length) {
+        alert("No sheets found in Excel!");
+        return;
+      }
+
+      const sheet = workbook.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheet]);
+      if (!rows.length) {
+        alert("No data found in Excel!");
+        return;
+      }
+
+      const promises = rows.map(r => {
+        const obj = {
+          id: "ID" + Date.now() + Math.random().toString(36).substring(2, 7),
+          shift: normalizeShift(r.shift || r.Shift),
+          route_no: r.route_no || r.Route_No || "",
+          route_name: r.route_name || r.Route_Name || "",
+          driver_name: r.driver_name || r.Driver_Name || "",
+          driver_number: r.driver_number || r.Driver_Number || "",
+          pick_up_time: r.pick_up_time || r.Pick_Up || "",
+          calling_time: r.calling_time || r.Calling_Time || ""
+        };
+        return db.ref("drivers/" + obj.id).set(obj);
+      });
+
+      await Promise.all(promises);
+      alert("Excel Imported Successfully!");
+      document.getElementById("fileInput").value = "";
+    } catch (err) {
+      console.error(err);
+      alert("Error importing Excel: " + err.message);
+    }
+  };
+
+  reader.onerror = err => {
+    console.error(err);
+    alert("Failed to read file!");
+  };
+
+  reader.readAsArrayBuffer(file);
+});
+
+/* ---------- Add Driver ---------- */
+document.getElementById("addDriverBtn").addEventListener("click", ()=>{
+  const route_no = prompt("Route No") || "";
+  const route_name = prompt("Route Name") || "";
+  const shift = normalizeShift(prompt("Shift (1/2/3)") || "1");
+  const driver_name = prompt("Driver Name") || "";
+  const driver_number = prompt("Driver Number") || "";
+  const pick_up_time = prompt("Pick Up Time") || "";
+  const calling_time = prompt("Calling Time") || "";
+
+  saveDriver({
+    id:"ID"+Date.now(),
+    shift, route_no, route_name, driver_name, driver_number, pick_up_time, calling_time
+  });
+});
+
+/* ---------- Edit ---------- */
+window.editDriver = function(id){
+  const d = window.allDrivers.find(x=>x.id===id);
+  if(!d) return;
+
+  d.route_no = prompt("Route No",d.route_no)||d.route_no;
+  d.route_name = prompt("Route Name",d.route_name)||d.route_name;
+  d.shift = normalizeShift(prompt("Shift (1/2/3)",d.shift)||d.shift);
+  d.driver_name = prompt("Driver Name",d.driver_name)||d.driver_name;
+  d.driver_number = prompt("Driver Number",d.driver_number)||d.driver_number;
+  d.pick_up_time = prompt("Pick Up Time",d.pick_up_time)||d.pick_up_time;
+  d.calling_time = prompt("Calling Time",d.calling_time)||d.calling_time;
+
+  saveDriver(d);
+};
+
+/* ---------- Search listeners ---------- */
+document.getElementById("searchAdmin").addEventListener("input", renderAdminTable);
+document.getElementById("driverSearch").addEventListener("input", renderDriverView);
+document.getElementById("shiftFilter").addEventListener("change", renderDriverView);
+
+/* ---------- Login / Logout ---------- */
+document.getElementById("adminLoginTop").addEventListener("click",()=>{
+  document.getElementById("loginCard").classList.remove("hidden");
+  document.getElementById("driverPanel").classList.add("hidden");
+});
+
+document.getElementById("openAdminFromDriver").addEventListener("click",()=>{
+  document.getElementById("adminLoginTop").click();
+});
+
+document.getElementById("loginBtn").addEventListener("click",()=>{
+  const e = email.value.trim();
+  const p = password.value.trim();
+  auth.signInWithEmailAndPassword(e,p).then(()=>{
+    document.getElementById("adminPanel").classList.remove("hidden");
+    document.getElementById("driverPanel").classList.add("hidden");
+    document.getElementById("loginCard").classList.add("hidden");
+  });
+});
+
+document.getElementById("logoutBtn").addEventListener("click",()=>{
+  auth.signOut();
+});
+
+/* ---------- Auth state ---------- */
+auth.onAuthStateChanged(u=>{
+  if(u){
+    document.getElementById("adminPanel").classList.remove("hidden");
+    document.getElementById("driverPanel").classList.add("hidden");
+    document.getElementById("loginCard").classList.add("hidden");
+  } else {
+    document.getElementById("adminPanel").classList.add("hidden");
+    document.getElementById("driverPanel").classList.remove("hidden");
+    document.getElementById("loginCard").classList.add("hidden");
+  }
+});
+
+/* --------- Initial Load -------- */
+loadFromFirebase();
+
+</script>
+</body>
+</html>
