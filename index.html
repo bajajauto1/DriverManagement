@@ -14,80 +14,36 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
 <style>
-  :root{--blue:#1f6feb;--muted:#666}
-  body{font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;margin:0}
-  
-  /* Header */
-  header{
-    padding:12px 16px;
-    background:var(--blue);
-    color:white;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap; /* allows wrapping on mobile */
-    gap:8px;
-  }
-  header h1{font-size:18px;margin:0;flex:1 1 auto;}
-  header img{height:40px;width:auto;}
-  
-  /* Container */
-  .wrap{max-width:1000px;margin:18px auto;padding:0 12px}
-  
-  /* Card */
-  .card{
-    background:white;
-    padding:14px;
-    border-radius:10px;
-    box-shadow:0 1px 6px rgba(0,0,0,.08);
-    overflow-x:auto; /* horizontal scroll for tables */
-  }
-  
-  /* Buttons */
-  button{padding:8px 12px;border:none;border-radius:6px;background:var(--blue);color:white;cursor:pointer}
-  .secondary{background:#f3f4f6;color:#111;border:1px solid #ddd}
-  .danger{background:#ef4444}
-  .hidden{display:none}
-  
-  /* Tables */
-  table{width:100%;border-collapse:collapse;margin-top:10px;min-width:600px;}
-  th,td{border-bottom:1px solid #eee;padding:8px;text-align:left;white-space:nowrap;}
-  
-  /* Call link */
-  a.call{background:#10b981;padding:6px 10px;border-radius:6px;color:white;text-decoration:none}
-  
-  /* Inputs / selects */
-  input, select {padding:8px;border:1px solid #ddd;border-radius:6px;width:100%;box-sizing:border-box;}
-  
-  /* Text / helper */
-  .muted{color:var(--muted);font-size:13px}
-  
-  /* Rows */
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-  .small{padding:6px 8px;font-size:13px}
-  
-  /* MOBILE RESPONSIVE */
-  @media(max-width:600px){
-    header{flex-direction:column;align-items:flex-start;}
-    header h1{font-size:16px;margin-top:4px;}
-    
-    .row{flex-direction:column;align-items:flex-start;}
-    
-    input, select, button.small{width:100%;margin-top:6px;}
-    
-    /* Make search fields bigger */
-    #searchAdmin, #driverSearch, #shiftFilter{
-      width:100% !important;
-      margin-top:6px;
-    }
-    
-    table{min-width:0;}
-    th, td{font-size:13px;padding:6px;}
-    
-    /* Driver cards full width */
-    #driverInfoWrap .card{width:100%;margin-bottom:10px;}
-  }
+:root{--blue:#1f6feb;--muted:#666}
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;margin:0}
+header{padding:12px 16px;background:var(--blue);color:white;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+.wrap{max-width:1000px;margin:18px auto;padding:0 12px}
+.card{background:white;padding:14px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+button{padding:8px 12px;border:none;border-radius:6px;background:var(--blue);color:white;cursor:pointer}
+.secondary{background:#f3f4f6;color:#111;border:1px solid #ddd}
+.danger{background:#ef4444}
+.hidden{display:none}
+table{width:100%;border-collapse:collapse;margin-top:10px;min-width:700px;}
+th,td{border-bottom:1px solid #eee;padding:8px;text-align:left;font-size:14px}
+a.call{background:#10b981;padding:6px 10px;border-radius:6px;color:white;text-decoration:none;display:inline-block;text-align:center}
+input, select {padding:8px;border:1px solid #ddd;border-radius:6px;width:100%;box-sizing:border-box;margin-bottom:6px}
+.muted{color:var(--muted);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.small{padding:6px 8px;font-size:13px}
+
+/* Mobile adjustments */
+@media (max-width:600px){
+  header{flex-direction:column;align-items:flex-start;gap:8px}
+  .row{flex-direction:column;align-items:stretch}
+  .row input, .row select, .row button{flex:1;width:100%;margin-bottom:6px}
+  #driversTableWrap{overflow-x:auto;}
+  #driversTableWrap table{min-width:700px;}
+  #driverInfoWrap .card{padding:10px;font-size:14px;}
+}
 </style>
+
+  
 </head>
 <body>
 
@@ -115,23 +71,30 @@
   </div>
 
   <!-- Admin Panel -->
-  <div id="adminPanel" class="card hidden" style="margin-bottom:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h3 style="margin:0">Admin Panel</h3>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="logoutBtn" class="secondary small">Logout</button>
-      </div>
+  <!-- Admin Panel -->
+<div id="adminPanel" class="card hidden" style="margin-bottom:12px">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
+    <h3 style="margin:0">Admin Panel</h3>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button id="logoutBtn" class="secondary small">Logout</button>
     </div>
-
-    <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-      <input id="searchAdmin" placeholder="Search admin table (route/driver/shift/phone)" style="flex:1">
-      <input id="fileInput" type="file" accept=".xlsx,.xls" class="small">
-      <button id="uploadBtn" class="small">Upload</button>
-      <button id="addDriverBtn" class="small">Add Driver</button>
-    </div>
-
-    <div id="driversTableWrap" style="margin-top:12px"></div>
   </div>
+
+  <!-- Search Input on its own row -->
+  <div style="margin-top:10px">
+    <input id="searchAdmin" placeholder="Search admin table (route/driver/shift/phone)">
+  </div>
+
+  <!-- File input + buttons in separate row -->
+  <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input id="fileInput" type="file" accept=".xlsx,.xls" class="small">
+    <button id="uploadBtn" class="small">Upload</button>
+    <button id="addDriverBtn" class="small">Add Driver</button>
+  </div>
+
+  <div id="driversTableWrap" style="margin-top:12px"></div>
+</div>
+
 
   <!-- Driver Panel (default visible) -->
   <div id="driverPanel" class="card">
@@ -429,5 +392,4 @@ loadFromFirebase();
 
 </script>
 </body>
-
 </html>
