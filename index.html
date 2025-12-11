@@ -52,8 +52,9 @@ input, select {padding:8px;border:1px solid #ddd;border-radius:6px;width:100%;bo
     <img src="download (1).png" alt="Logo" style="height:40px;width:auto">
     <h1 style="margin:0;font-size:18px;">Driver Assign System</h1>
   </div>
-  <div>
-    <button id="adminLoginTop" style="background:white;color:var(--blue);font-weight:700">Admin Login</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button id="toggleViewBtn" style="background:white;color:var(--blue);font-weight:700">Switch View</button>
+    <button id="adminLoginTop" style="background:white;color:var(--blue);font-weight:700"></button>
   </div>
 </header>
 
@@ -389,6 +390,30 @@ auth.onAuthStateChanged(u=>{
 
 /* --------- Initial Load -------- */
 loadFromFirebase();
+document.getElementById("toggleViewBtn").addEventListener("click", () => {
+  const driverPanel = document.getElementById("driverPanel");
+  const adminPanel = document.getElementById("adminPanel");
+  const loginCard = document.getElementById("loginCard");
+
+  if(!driverPanel.classList.contains("hidden")) {
+    // Trying to switch to Admin
+    if(auth.currentUser) {
+      adminPanel.classList.remove("hidden");
+      driverPanel.classList.add("hidden");
+      loginCard.classList.add("hidden");
+    } else {
+      // Show login if not logged in
+      loginCard.classList.remove("hidden");
+      driverPanel.classList.add("hidden");
+      adminPanel.classList.add("hidden");
+    }
+  } else {
+    // Switch to Driver View
+    driverPanel.classList.remove("hidden");
+    adminPanel.classList.add("hidden");
+    loginCard.classList.add("hidden");
+  }
+});
 
 </script>
 </body>
